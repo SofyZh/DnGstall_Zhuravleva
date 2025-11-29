@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="de0c0bd3-aa49-485d-ac87-0503eb6e06c7" name="Changes" comment="Creating GUI">
+    <list default="true" id="de0c0bd3-aa49-485d-ac87-0503eb6e06c7" name="Changes" comment="Pygame library didn't work for program's functional, so the GUI was rewritten with tkinter (and an additional screen was added for invisible watermark functions)">
       <change afterPath="$PROJECT_DIR$/classes.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
@@ -36,6 +36,9 @@
     &quot;accountId&quot;: &quot;79244ce5-9e98-4122-9177-c13b4a9d0fc9&quot;
   }
 }</component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/main.py" root0="FORCE_HIGHLIGHTING" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8
 }</component>
@@ -85,36 +88,50 @@
       <option name="project" value="LOCAL" />
       <updated>1763371249114</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Pygame library didn't work for program's functional, so the GUI was rewritten with tkinter (and an additional screen was added for invisible watermark functions)">
+      <option name="closed" value="true" />
+      <created>1763562724837</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1763562724837</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial commit to create repository" />
     <MESSAGE value="Creating GUI" />
-    <option name="LAST_COMMIT_MESSAGE" value="Creating GUI" />
+    <MESSAGE value="Pygame library didn't work for program's functional, so the GUI was rewritten with tkinter (and an additional screen was added for invisible watermark functions)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Pygame library didn't work for program's functional, so the GUI was rewritten with tkinter (and an additional screen was added for invisible watermark functions)" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>129</line>
+          <line>132</line>
           <option name="timeStamp" value="2" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>147</line>
+          <line>150</line>
           <option name="timeStamp" value="3" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>66</line>
+          <line>69</line>
           <option name="timeStamp" value="6" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>200</line>
+          <line>207</line>
           <option name="timeStamp" value="7" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>286</line>
+          <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

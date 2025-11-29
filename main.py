@@ -1,6 +1,9 @@
 import tkinter as tk
+import numpy as np
 from tkinter import ttk, filedialog, messagebox
-from PIL import Image
+from scipy.fftpack import dct, idct
+from PIL import Image, ImageTk
+import hashlib
 
 # Tokens
 SCREEN_WIDTH = 525
@@ -262,28 +265,102 @@ class DnGstalApp:
 
     def apply_watermark(self):
         if not self.selected_image:
-            messagebox.showwarning("Warning", "Please select an image first")
+            messagebox.showwarning("Warning", "Select an image.")
             return
 
         try:
-            # Apply DCT watermark placeholder
+            if self.original_image is None: self.original_image = self.selected_image.copy()
+
             watermarked_image = self.dct_watermark(
                 self.selected_image,
                 self.watermark_text.get(),
                 self.watermark_strength.get()
             )
 
-            self.edited_image = watermarked_image
-            self.selected_image = watermarked_image
+            self.edited_image, self.selected_image = watermarked_image, watermarked_image
 
             messagebox.showinfo("Success", "Invisible watermark applied successfully!")
 
         except Exception as e:
             messagebox.showerror("Error", f"Could not apply watermark: {e}")
 
-    # DCT watermark function placeholder
+
     def dct_watermark(self, image, watermark_text, strength):
-        return image.copy()
+        try:
+            if image.mode == 'RGBA': image = image.convert('RGB')
+
+            img_array = np.array(image)
+            # applying dct to colour channels
+            watermarked_array = np.zeros_like(img_array, dtype=np.float32)
+            for channel in range(3):
+                watermarked_array[:, :, channel] = self.apply_dct_single_channel(
+                    img_array[:, :, channel], watermark_text, strength, channel
+                )
+
+            watermarked_array = np.clip(watermarked_array, 0, 255).astype(np.uint8)
+            return Image.fromarray(watermarked_array)
+
+        except Exception as e: raise Exception(f"Watermarking error: {e}")
+
+    def apply_dct_single_channel(self, channel, watermark_text, strength, channel_index):
+        h, w = channel.shape
+        watermark_sequence = self.generate_watermark_sequence(watermark_text, h, w, channel_index)
+        block_size = 8
+        watermarked_channel = channel.astype(np.float32).copy()
+
+        # applying dct by blocks
+        for i in range(0, h - block_size, block_size):
+            for j in range(0, w - block_size, block_size):
+                block = channel[i:i + block_size, j:j + block_size].astype(np.float32)
+                dct_block = dct(dct(block, axis=0, norm='ortho'), axis=1, norm='ortho')
+                self.embed_watermark_in_block(dct_block, watermark_sequence, i, j, strength)
+                watermarked_block = idct(idct(dct_block, axis=0, norm='ortho'), axis=1, norm='ortho')
+                watermarked_channel[i:i + block_size, j:j + block_size] = watermarked_block
+
+        return watermarked_channel
+
+    # Creating a unique sequence from the watermark text (acts as key cuz reproducible).
+    # for now only the fist ~5 letters of watermark_text are used in the actual
+    # sequence. to be improved
+    def generate_watermark_sequence(self, watermark_text, height, width, channel_index):
+        seed_text = f"{watermark_text}_channel_{channel_index}"
+        seed = int(hashlib.md5(seed_text.encode()).hexdigest()[:8], 16)
+        np.random.seed(seed)
+        return np.random.randn(height, width)
+
+    def embed_watermark_in_block(self, dct_block, watermark_sequence, i, j, strength):
+        block_size = dct_block.shape[0]
+
+        # standard mid-frequency coeffs that the program is gonna target and modify.
+        # low frequencies dont work cuz they would be too visible to a human eye, high frequencies are too
+        # susceptible to changes (they will disappear after basic editing of the image)
+        embedding_positions = [(1, 2), (2, 1), (2, 2), (2, 3), (3, 2)]
+
+        for pos_x, pos_y in embedding_positions:
+            if pos_x < block_size and pos_y < block_size:
+                wm_i = min(i + pos_x, watermark_sequence.shape[0] - 1)
+                wm_j = min(j + pos_y, watermark_sequence.shape[1] - 1)
+                dct_block[pos_x, pos_y] += strength * watermark_sequence[wm_i, wm_j] * abs(dct_block[pos_x, pos_y])
+
+
+    def extract_bit_from_block(self, dct_block, original_dct_block, ref_sequence, i, j, strength):
+        block_size = dct_block.shape[0]
+        embedding_positions = [(1, 2), (2, 1), (2, 2), (2, 3), (3, 2)]
+
+        correlation, count = 0, 0
+
+        for pos_x, pos_y in embedding_positions:
+            if pos_x < block_size and pos_y < block_size:
+                diff = dct_block[pos_x, pos_y] - original_dct_block[pos_x, pos_y]
+
+                wm_i = min(i + pos_x, ref_sequence.shape[0] - 1)
+                wm_j = min(j + pos_y, ref_sequence.shape[1] - 1)
+
+                correlation += diff * ref_sequence[wm_i, wm_j]
+                count += 1
+
+        return 1 if correlation > 0 else 0
+
 
     def download_image(self):
         if self.edited_image:
