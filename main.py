@@ -21,6 +21,7 @@ COMPLETE_SCREEN = 3
 DCT_SCREEN = 4
 
 
+
 class DnGstalApp:
     def __init__(self):
         self.root = tk.Tk()
@@ -48,17 +49,18 @@ class DnGstalApp:
         style.configure("Black.Horizontal.TScale", background=BLACK, troughcolor=GRAY, bordercolor=BLACK)
         style.configure("Black.TEntry", background=BLACK, foreground=BLACK)
 
-        self.setup_screens()
+        self.screens = {MAIN_SCREEN: self.create_main_screen()}
         self.show_screen(MAIN_SCREEN)
 
-    def setup_screens(self):
-        self.screens = {}
-
-        self.screens[MAIN_SCREEN] = self.create_main_screen()
-        self.screens[SELECT_IMAGE_SCREEN] = self.create_select_image_screen()
-        self.screens[EDIT_SCREEN] = self.create_edit_screen()
-        self.screens[COMPLETE_SCREEN] = self.create_complete_screen()
-        self.screens[DCT_SCREEN] = self.create_dct_screen()
+    # Пришлось изменить setup_screens на get_screen тк загрузка всех экранов сразу приводила к очень долгой инициализации
+    def get_screen(self, screen_name):
+        if screen_name not in self.screens:
+            if screen_name == MAIN_SCREEN: self.screens[MAIN_SCREEN] = self.create_main_screen()
+            elif screen_name == SELECT_IMAGE_SCREEN: self.screens[SELECT_IMAGE_SCREEN] = self.create_select_image_screen()
+            elif screen_name == EDIT_SCREEN: self.screens[EDIT_SCREEN] = self.create_edit_screen()
+            elif screen_name == COMPLETE_SCREEN: self.screens[COMPLETE_SCREEN] = self.create_complete_screen()
+            elif screen_name == DCT_SCREEN: self.screens[DCT_SCREEN] = self.create_dct_screen()
+        return self.screens[screen_name]
 
     def create_main_screen(self):
         frame = ttk.Frame(self.main_frame, style='Black.TFrame')
@@ -96,7 +98,6 @@ class DnGstalApp:
         select_button = tk.Button(frame, text="Select Image", font=self.button_font,
                                   bg=LIGHT_GREEN, fg=BLACK,
                                   command=lambda: self.select_image(file_label))
-        #select_button.place(x=50, y=50, width=150, height=60)
         select_button.pack(pady=10)
 
         button_frame = ttk.Frame(frame, style='Black.TFrame')
@@ -120,18 +121,145 @@ class DnGstalApp:
 
         title_label = ttk.Label(frame, text="Edit Mode", font=self.lesser_title_font,
                                 foreground=LIGHT_GREEN, background=BLACK)
-        title_label.pack(pady=30)
+        title_label.pack(pady=10)
 
-        tools_frame = tk.Frame(frame, bg=GRAY, width=300, height=150)
-        tools_frame.pack(pady=20)
-        tools_frame.pack_propagate(False)
+        content_frame = ttk.Frame(frame, style='Black.TFrame')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        tools_label = tk.Label(tools_frame, text="Edit tools will\nappear here",
-                               bg=GRAY, fg=LIGHT_GREEN, font=self.button_font)
-        tools_label.pack(expand=True)
+        preview_container = ttk.Frame(content_frame, style='Black.TFrame')
+        preview_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        preview_label = ttk.Label(preview_container, text="Preview",
+                                  font=self.button_font,
+                                  foreground=LIGHT_GREEN, background=BLACK)
+        preview_label.pack(anchor=tk.W)
+        preview_frame = ttk.Frame(preview_container, style='Black.TFrame', relief=tk.FLAT)
+        preview_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+
+        self.preview_canvas = tk.Canvas(preview_frame, bg=BLACK, width=250, height=250)
+        self.preview_canvas.pack(pady=10, padx=10)
+        self.preview_label = ttk.Label(preview_frame, text="No image loaded",
+                                            foreground=LIGHT_GREEN, background=BLACK)
+        self.preview_label.pack()
+
+        self.update_image_preview()
+
+        controls_frame = ttk.Frame(content_frame, style='Black.TFrame')
+        controls_frame.pack(side=tk.RIGHT, fill=tk.Y)
+
+        filters_container = ttk.Frame(controls_frame, style='Black.TFrame')
+        filters_container.pack(fill=tk.X, pady=(0, 10))
+        filters_label = ttk.Label(filters_container, text="Filters",
+                                  font=self.button_font,
+                                  foreground=LIGHT_GREEN, background=BLACK)
+        filters_label.pack(anchor=tk.W)
+        filters_frame = ttk.Frame(filters_container, style='Black.TFrame', relief=tk.FLAT)
+        filters_frame.pack(fill=tk.X, pady=(5, 0))
+
+        brightness_frame = ttk.Frame(filters_frame, style='Black.TFrame')
+        brightness_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(brightness_frame, text="Brightness:",
+                  foreground=LIGHT_GREEN, background=BLACK).pack(side=tk.LEFT)
+
+        self.brightness_value = ttk.Label(brightness_frame, text="0",
+                                          foreground=LIGHT_GREEN, background=BLACK)
+        self.brightness_value.pack(side=tk.RIGHT)
+
+        self.brightness_slider = ttk.Scale(brightness_frame, from_=-100, to=100,
+                                           style="Black.Horizontal.TScale",
+                                           command=lambda v: self.update_brightness(float(v)))
+        self.brightness_slider.set(0)
+        self.brightness_slider.pack(fill=tk.X, padx=5)
+
+        # Contrast
+        contrast_frame = ttk.Frame(filters_frame, style='Black.TFrame')
+        contrast_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(contrast_frame, text="Contrast:",
+                  foreground=LIGHT_GREEN, background=BLACK).pack(side=tk.LEFT)
+
+        self.contrast_value = ttk.Label(contrast_frame, text="0",
+                                        foreground=LIGHT_GREEN, background=BLACK)
+        self.contrast_value.pack(side=tk.RIGHT)
+        self.contrast_slider = ttk.Scale(contrast_frame, from_=-100, to=100,
+                                         style="Black.Horizontal.TScale",
+                                         command=lambda v: self.update_contrast(float(v)))
+        self.contrast_slider.set(0)
+        self.contrast_slider.pack(fill=tk.X, padx=5)
+
+        # Saturation
+        saturation_frame = ttk.Frame(filters_frame, style='Black.TFrame')
+        saturation_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(saturation_frame, text="Saturation:",
+                  foreground=LIGHT_GREEN, background=BLACK).pack(side=tk.LEFT)
+
+        self.saturation_value = ttk.Label(saturation_frame, text="0",
+                                          foreground=LIGHT_GREEN, background=BLACK)
+        self.saturation_value.pack(side=tk.RIGHT)
+        self.saturation_slider = ttk.Scale(saturation_frame, from_=-100, to=100,
+                                           style="Black.Horizontal.TScale",
+                                           command=lambda v: self.update_saturation(float(v)))
+        self.saturation_slider.set(0)
+        self.saturation_slider.pack(fill=tk.X, padx=5)
+
+        # Crop tool
+        crop_container = ttk.Frame(controls_frame, style='Black.TFrame')
+        crop_container.pack(fill=tk.X, pady=(10, 10))
+        crop_label = ttk.Label(crop_container, text="Crop Tool",
+                               font=self.button_font,
+                               foreground=LIGHT_GREEN, background=BLACK)
+        crop_label.pack(anchor=tk.W)
+        crop_frame = ttk.Frame(crop_container, style='Black.TFrame', relief=tk.FLAT)
+        crop_frame.pack(fill=tk.X, pady=(5, 0))
+
+        dim_frame = ttk.Frame(crop_frame, style='Black.TFrame')
+        dim_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(dim_frame, text="Width:",
+                  foreground=LIGHT_GREEN, background=BLACK).pack(side=tk.LEFT, padx=(0, 5))
+        self.crop_width_var = tk.StringVar(value="200")
+        crop_width_entry = ttk.Entry(dim_frame, textvariable=self.crop_width_var,
+                                     width=8, style="Black.TEntry")
+        crop_width_entry.pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Label(dim_frame, text="Height:",
+                  foreground=LIGHT_GREEN, background=BLACK).pack(side=tk.LEFT, padx=(0, 5))
+        self.crop_height_var = tk.StringVar(value="200")
+        crop_height_entry = ttk.Entry(dim_frame, textvariable=self.crop_height_var,
+                                      width=8, style="Black.TEntry")
+        crop_height_entry.pack(side=tk.LEFT)
+
+        pos_frame = ttk.Frame(crop_frame, style='Black.TFrame')
+        pos_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(pos_frame, text="X:",
+                  foreground=LIGHT_GREEN, background=BLACK).pack(side=tk.LEFT, padx=(0, 5))
+        self.crop_x_var = tk.StringVar(value="0")
+        crop_x_entry = ttk.Entry(pos_frame, textvariable=self.crop_x_var,
+                                 width=8, style="Black.TEntry")
+        crop_x_entry.pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Label(pos_frame, text="Y:",
+                  foreground=LIGHT_GREEN, background=BLACK).pack(side=tk.LEFT, padx=(0, 5))
+        self.crop_y_var = tk.StringVar(value="0")
+        crop_y_entry = ttk.Entry(pos_frame, textvariable=self.crop_y_var,
+                                 width=8, style="Black.TEntry")
+        crop_y_entry.pack(side=tk.LEFT)
+
+        crop_button = tk.Button(crop_frame, text="Apply Crop", font=self.info_font,
+                                bg=LIGHT_GREEN, fg=BLACK,
+                                command=self.apply_crop)
+        crop_button.pack(pady=10)
+
+        reset_frame = ttk.Frame(controls_frame, style='Black.TFrame')
+        reset_frame.pack(fill=tk.X, pady=10)
+
+        reset_button = tk.Button(reset_frame, text="Reset All Filters", font=self.info_font,
+                                 bg=LIGHT_GREEN, fg=BLACK,
+                                 command=self.reset_filters)
+        reset_button.pack()
 
         button_frame = ttk.Frame(frame, style='Black.TFrame')
-        button_frame.pack(pady=20)
+        button_frame.pack(pady=10)
 
         back_button = tk.Button(button_frame, text="Back", font=self.button_font,
                                 bg=LIGHT_GREEN, fg=BLACK, width=10,
@@ -140,7 +268,7 @@ class DnGstalApp:
 
         complete_button = tk.Button(button_frame, text="Complete", font=self.button_font,
                                     bg=LIGHT_GREEN, fg=BLACK, width=10,
-                                    command=lambda: self.show_screen(COMPLETE_SCREEN))
+                                    command=self.finish_editing)
         complete_button.pack(side=tk.LEFT, padx=10)
 
         return frame
@@ -190,7 +318,6 @@ class DnGstalApp:
 
         text_entry = ttk.Entry(text_frame, textvariable=self.watermark_text, font=self.info_font, style="Black.TEntry")
         text_entry.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
-        #text_entry.configure("")
 
         strength_frame = ttk.Frame(frame, style='Black.TFrame')
         strength_frame.pack(pady=10, fill=tk.X, padx=20)
@@ -231,11 +358,10 @@ class DnGstalApp:
         return frame
 
     def show_screen(self, screen_name):
-        for screen in self.screens.values():
-            screen.pack_forget()
-
+        for screen in self.screens.values():  screen.pack_forget()
         self.current_screen = screen_name
-        self.screens[screen_name].pack(fill=tk.BOTH, expand=True)
+        screen = self.get_screen(screen_name)
+        screen.pack(fill=tk.BOTH, expand=True)
 
     def start_watermark_flow(self):
         self.skip_edit_flag = True
@@ -250,8 +376,7 @@ class DnGstalApp:
                 self.selected_image = self.original_image.copy()
                 file_label.config(text=file_path.split('/')[-1])
 
-            except Exception as e:
-                messagebox.showerror("Error", f"Could not load image: {e}")
+            except Exception as e: messagebox.showerror("Error", f"Could not load image: {e}")
 
     def proceed_to_next(self):
         if not self.selected_image:
@@ -264,10 +389,6 @@ class DnGstalApp:
         else: self.show_screen(EDIT_SCREEN)
 
     def apply_watermark(self):
-        if not self.selected_image:
-            messagebox.showwarning("Warning", "Select an image.")
-            return
-
         try:
             if self.original_image is None: self.original_image = self.selected_image.copy()
 
@@ -278,11 +399,9 @@ class DnGstalApp:
             )
 
             self.edited_image, self.selected_image = watermarked_image, watermarked_image
-
             messagebox.showinfo("Success", "Invisible watermark applied successfully!")
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not apply watermark: {e}")
+        except Exception as e: messagebox.showerror("Error", f"Could not apply watermark: {e}")
 
 
     def dct_watermark(self, image, watermark_text, strength):
@@ -362,20 +481,136 @@ class DnGstalApp:
         return 1 if correlation > 0 else 0
 
 
-    def download_image(self):
-        if self.edited_image:
-            file_path = filedialog.asksaveasfilename(
-                defaultextension=".png",
-                filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg"), ("All files", "*.*")]
-            )
+    def update_image_preview(self):
+        if self.selected_image:
+            try:
+                preview_size = (250, 250)
+                preview_img = self.selected_image.copy()
+                preview_img.thumbnail(preview_size, Image.Resampling.LANCZOS)
 
-            if file_path:
-                try:
-                    self.edited_image.save(file_path)
-                    messagebox.showinfo("Success", f"Image saved to {file_path}")
-                except Exception as e:
-                    messagebox.showerror("Error", f"Could not save image: {e}")
-        else: messagebox.showwarning("Warning", "No edited image to download")
+                photo = ImageTk.PhotoImage(preview_img)
+
+                self.preview_canvas.delete("all")
+                self.preview_canvas.create_image(125, 125, image=photo, anchor=tk.CENTER)
+                self.preview_canvas.image = photo  # Keep reference
+
+                self.preview_label.config(text=f"Size: {self.selected_image.size}")
+
+            except Exception as e:
+                print(f"Preview error: {e}")
+                self.preview_label.config(text="Error loading preview")
+        else:
+            self.preview_canvas.delete("all")
+            self.preview_label.config(text="No image loaded")
+
+    def update_brightness(self, value):
+        try:
+            self.brightness_value.config(text=f"{int(value)}")
+
+            if self.original_image:
+                # convert to HSV for brightness adjustment
+                img_array = np.array(self.original_image.convert('RGB')).astype(np.float32)
+
+                factor = 1.0 + (value / 100.0)
+                img_array = np.clip(img_array * factor, 0, 255)
+
+                self.selected_image = Image.fromarray(img_array.astype(np.uint8))
+                self.update_image_preview()
+
+        except Exception as e: print(f"Brightness error: {e}")
+
+    def update_contrast(self, value):
+        try:
+            self.contrast_value.config(text=f"{int(value)}")
+
+            if self.original_image:
+                img_array = np.array(self.original_image.convert('RGB')).astype(np.float32)
+
+                factor = 1.0 + (value / 100.0)
+                mean = img_array.mean()
+                img_array = mean + factor * (img_array - mean)
+                img_array = np.clip(img_array, 0, 255)
+
+                self.selected_image = Image.fromarray(img_array.astype(np.uint8))
+                self.update_image_preview()
+
+        except Exception as e: print(f"Contrast error: {e}")
+
+    def update_saturation(self, value):
+        try:
+            self.saturation_value.config(text=f"{int(value)}")
+
+            if self.original_image:
+                img = self.original_image.convert('RGB')
+                hsv_img = img.convert('HSV')
+                hsv_array = np.array(hsv_img).astype(np.float32)
+
+                factor = 1.0 + (value / 100.0)
+                hsv_array[:, :, 1] = np.clip(hsv_array[:, :, 1] * factor, 0, 255)
+
+                hsv_array = hsv_array.astype(np.uint8)
+                self.selected_image = Image.fromarray(hsv_array, mode='HSV').convert('RGB')
+                self.update_image_preview()
+
+        except Exception as e: print(f"Saturation error: {e}")
+
+    def apply_crop(self):
+        try:
+            width = int(self.crop_width_var.get())
+            height = int(self.crop_height_var.get())
+            x = int(self.crop_x_var.get())
+            y = int(self.crop_y_var.get())
+
+            if (width <= 0 or height <= 0) or (x < 0 or y < 0):
+                messagebox.showwarning("Warning", "Cannot be negative.")
+                return
+
+            img_width, img_height = self.selected_image.size
+            if x + width > img_width: width = img_width - x
+            if y + height > img_height: height = img_height - y
+
+            cropped_image = self.selected_image.crop((x, y, x + width, y + height))
+            self.selected_image = cropped_image
+            self.update_image_preview()
+
+        except ValueError:
+            messagebox.showerror("Error", "Invalid crop values. Please enter numbers.")
+        except Exception as e: messagebox.showerror("Error", f"Crop failed: {e}")
+
+    def reset_filters(self):
+        if self.original_image:
+            self.selected_image = self.original_image.copy()
+
+            self.brightness_slider.set(0)
+            self.contrast_slider.set(0)
+            self.saturation_slider.set(0)
+
+            self.brightness_value.config(text="0")
+            self.contrast_value.config(text="0")
+            self.saturation_value.config(text="0")
+
+            self.crop_width_var.set("200")
+            self.crop_height_var.set("200")
+            self.crop_x_var.set("0")
+            self.crop_y_var.set("0")
+
+            self.update_image_preview()
+        else: messagebox.showwarning("Warning", "No original image to reset to")
+
+    def finish_editing(self):
+        self.edited_image = self.selected_image.copy()
+        self.show_screen(COMPLETE_SCREEN)
+
+
+    def download_image(self):
+        file_path = filedialog.asksaveasfilename(
+             defaultextension=".png",
+             filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg"), ("All files", "*.*")]
+        )
+
+        if file_path:
+            try: self.edited_image.save(file_path)
+            except Exception as e: messagebox.showerror("Error", f"Could not save image: {e}")
 
     def run(self): self.root.mainloop()
 
