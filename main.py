@@ -40,14 +40,14 @@ class DnGstalApp:
         self.button_font = ("Rubik", 20)
         self.info_font = ("Rubik", 10)
 
-        self.main_frame = ttk.Frame(self.root)
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
-        self.main_frame.configure(style='Black.TFrame')
-
         style = ttk.Style()
         style.configure('Black.TFrame', background=BLACK)
         style.configure("Black.Horizontal.TScale", background=BLACK, troughcolor=GRAY, bordercolor=BLACK)
         style.configure("Black.TEntry", background=BLACK, foreground=BLACK)
+
+        self.main_frame = ttk.Frame(self.root)
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        self.main_frame.configure(style='Black.TFrame')
 
         self.screens = {MAIN_SCREEN: self.create_main_screen()}
         self.show_screen(MAIN_SCREEN)
@@ -56,7 +56,8 @@ class DnGstalApp:
     def get_screen(self, screen_name):
         if screen_name not in self.screens:
             if screen_name == MAIN_SCREEN: self.screens[MAIN_SCREEN] = self.create_main_screen()
-            elif screen_name == SELECT_IMAGE_SCREEN: self.screens[SELECT_IMAGE_SCREEN] = self.create_select_image_screen()
+            elif screen_name == SELECT_IMAGE_SCREEN:
+                self.screens[SELECT_IMAGE_SCREEN] = self.create_select_image_screen()
             elif screen_name == EDIT_SCREEN: self.screens[EDIT_SCREEN] = self.create_edit_screen()
             elif screen_name == COMPLETE_SCREEN: self.screens[COMPLETE_SCREEN] = self.create_complete_screen()
             elif screen_name == DCT_SCREEN: self.screens[DCT_SCREEN] = self.create_dct_screen()
@@ -112,8 +113,6 @@ class DnGstalApp:
                                    bg=LIGHT_GREEN, fg=BLACK, width=10, height=1,
                                    command=self.proceed_to_next)
         proceed_button.pack(side=tk.LEFT, padx=10)
-
-
         return frame
 
     def create_edit_screen(self):
@@ -284,7 +283,7 @@ class DnGstalApp:
         preview_frame.pack(pady=20)
         preview_frame.pack_propagate(False)
 
-        preview_label = tk.Label(preview_frame, text="Edited Image Preview",
+        preview_label = tk.Label(preview_frame, text=self.file_path.split('/')[-1],
                                  bg=GRAY, fg=LIGHT_GREEN, font=self.button_font)
         preview_label.pack(expand=True)
 
@@ -368,13 +367,13 @@ class DnGstalApp:
         self.show_screen(SELECT_IMAGE_SCREEN)
 
     def select_image(self, file_label):
-        file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp")])
+        self.file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp")])
 
-        if file_path:
+        if self.file_path:
             try:
-                self.original_image = Image.open(file_path)
+                self.original_image = Image.open(self.file_path)
                 self.selected_image = self.original_image.copy()
-                file_label.config(text=file_path.split('/')[-1])
+                file_label.config(text=self.file_path.split('/')[-1])
 
             except Exception as e: messagebox.showerror("Error", f"Could not load image: {e}")
 
@@ -460,25 +459,6 @@ class DnGstalApp:
                 wm_i = min(i + pos_x, watermark_sequence.shape[0] - 1)
                 wm_j = min(j + pos_y, watermark_sequence.shape[1] - 1)
                 dct_block[pos_x, pos_y] += strength * watermark_sequence[wm_i, wm_j] * abs(dct_block[pos_x, pos_y])
-
-
-    def extract_bit_from_block(self, dct_block, original_dct_block, ref_sequence, i, j, strength):
-        block_size = dct_block.shape[0]
-        embedding_positions = [(1, 2), (2, 1), (2, 2), (2, 3), (3, 2)]
-
-        correlation, count = 0, 0
-
-        for pos_x, pos_y in embedding_positions:
-            if pos_x < block_size and pos_y < block_size:
-                diff = dct_block[pos_x, pos_y] - original_dct_block[pos_x, pos_y]
-
-                wm_i = min(i + pos_x, ref_sequence.shape[0] - 1)
-                wm_j = min(j + pos_y, ref_sequence.shape[1] - 1)
-
-                correlation += diff * ref_sequence[wm_i, wm_j]
-                count += 1
-
-        return 1 if correlation > 0 else 0
 
 
     def update_image_preview(self):
